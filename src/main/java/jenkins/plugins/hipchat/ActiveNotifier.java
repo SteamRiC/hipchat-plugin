@@ -6,6 +6,8 @@ import hudson.model.AbstractProject;
 import hudson.model.CauseAction;
 import hudson.model.Result;
 import hudson.model.Run;
+// import hudson.model.*;
+// import hudson.tasks.test.*;
 import hudson.scm.ChangeLogSet;
 import hudson.scm.ChangeLogSet.AffectedFile;
 import hudson.scm.ChangeLogSet.Entry;
@@ -65,13 +67,14 @@ public class ActiveNotifier implements FineGrainedNotifier {
         Result result = r.getResult();
         AbstractBuild<?, ?> previousBuild = project.getLastBuild().getPreviousBuild();
         Result previousResult = (previousBuild != null) ? previousBuild.getResult() : Result.SUCCESS;
+        boolean disableNotify = notifier.isSilentNotifications() || result == Result.SUCCESS;
         if ((result == Result.ABORTED && notifier.isNotifyAborted())
                 || (result == Result.FAILURE && notifier.isNotifyFailure())
                 || (result == Result.NOT_BUILT && notifier.isNotifyNotBuilt())
                 || (result == Result.SUCCESS && previousResult == Result.FAILURE && notifier.isNotifyBackToNormal())
                 || (result == Result.SUCCESS && notifier.isNotifySuccess())
                 || (result == Result.UNSTABLE && notifier.isNotifyUnstable())) {
-            getHipChat(r).publish(getBuildStatusMessage(r), getBuildColor(r));
+            getHipChat(r).publish(getBuildStatusMessage(r), getBuildColor(r), disableNotify);
         }
     }
 
@@ -123,9 +126,20 @@ public class ActiveNotifier implements FineGrainedNotifier {
     }
 
     String getBuildStatusMessage(AbstractBuild r) {
+        AbstractProject<?, ?> project = r.getProject();
+        HipChatNotifier.HipChatJobProperty jobProperty = project.getProperty(HipChatNotifier.HipChatJobProperty.class);
         MessageBuilder message = new MessageBuilder(r);
-        message.appendStatusMessage();
+
+        if (jobProperty.getFailureCount() && (message.build.getResult() == Result.FAILURE)) {
+            message.appendFailureCount();
+            message.startMessage();
+        }else{
+            message.startMessage();
+            message.appendStatusMessage();
+        }
+
         message.appendDuration();
+
         return message.appendOpenLink().toString();
     }
 
@@ -136,7 +150,6 @@ public class ActiveNotifier implements FineGrainedNotifier {
         public MessageBuilder(AbstractBuild build) {
             this.message = new StringBuffer();
             this.build = build;
-            startMessage();
         }
 
         public MessageBuilder appendStatusMessage() {
@@ -179,7 +192,11 @@ public class ActiveNotifier implements FineGrainedNotifier {
         }
 
         public MessageBuilder appendOpenLink() {
-            String url = Jenkins.getInstance().getRootUrl() + build.getUrl();
+            AbstractProject<?, ?> project = build.getProject();
+            HipChatNotifier.HipChatJobProperty jobProperty = project.getProperty(HipChatNotifier.HipChatJobProperty.class);
+            String url = notifier.getBuildServerUrl() + build.getUrl();
+
+            if (jobProperty.getConsoleLink()) url += "console";
             message.append(" (<a href='").append(url).append("'>Open</a>)");
             return this;
         }
@@ -187,6 +204,22 @@ public class ActiveNotifier implements FineGrainedNotifier {
         public MessageBuilder appendDuration() {
             message.append(" after ");
             message.append(build.getDurationString());
+            return this;
+        }
+
+        public MessageBuilder appendFailureCount() {
+            try{
+                Integer totalCount = build.getAction(AbstractTestResultAction.class).getTotalCount();
+                Integer failCount = build.getAction(AbstractTestResultAction.class).getFailCount();
+
+                message.append("<b>" + failCount + "</b>" + " out of " + "<b>" + totalCount + "</b>" + " failed");
+                message.append(" in ");
+            }
+            catch (Exception e){
+                logger.info("Unable to get test results!");
+                message.append("MISSING ");
+            }
+
             return this;
         }
 

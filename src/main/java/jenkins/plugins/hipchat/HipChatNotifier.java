@@ -30,6 +30,9 @@ public class HipChatNotifier extends Notifier {
 
     private static final Logger logger = Logger.getLogger(HipChatNotifier.class.getName());
     private String room;
+    private boolean failureCount;
+    private boolean consoleLink;
+    private boolean silentNotifications;
     private boolean startNotification;
     private boolean notifySuccess;
     private boolean notifyAborted;
@@ -39,9 +42,13 @@ public class HipChatNotifier extends Notifier {
     private boolean notifyBackToNormal;
 
     @DataBoundConstructor
-    public HipChatNotifier(String room, boolean startNotification, boolean notifySuccess, boolean notifyAborted,
-            boolean notifyNotBuilt, boolean notifyUnstable, boolean notifyFailure, boolean notifyBackToNormal) {
+    public HipChatNotifier(String room, boolean failureCount, boolean consoleLink, boolean silentNotifications,
+                           boolean startNotification, boolean notifySuccess, boolean notifyAborted, boolean notifyNotBuilt,
+                           boolean notifyUnstable, boolean notifyFailure, boolean notifyBackToNormal) {
         this.room = room;
+        this.failureCount = failureCount;
+        this.consoleLink = consoleLink;
+        this.silentNotifications = silentNotifications;
         this.startNotification = startNotification;
         this.notifySuccess = notifySuccess;
         this.notifyAborted = notifyAborted;
@@ -49,6 +56,18 @@ public class HipChatNotifier extends Notifier {
         this.notifyUnstable = notifyUnstable;
         this.notifyFailure = notifyFailure;
         this.notifyBackToNormal = notifyBackToNormal;
+    }
+
+    public boolean isFailureCount() {
+        return failureCount;
+    }
+
+    public boolean isConsoleLink() {
+        return consoleLink;
+    }
+
+    public boolean isSilentNotifications() {
+        return silentNotifications;
     }
 
     public boolean isStartNotification() {
@@ -243,6 +262,9 @@ public class HipChatNotifier extends Notifier {
     @Deprecated
     public static class HipChatJobProperty extends hudson.model.JobProperty<AbstractProject<?, ?>> {
         private final String room;
+        private final boolean failureCount;
+        private final boolean consoleLink;
+        private final boolean silentNotifications;
         private final boolean startNotification;
         private final boolean notifySuccess;
         private final boolean notifyAborted;
@@ -251,9 +273,11 @@ public class HipChatNotifier extends Notifier {
         private final boolean notifyFailure;
         private final boolean notifyBackToNormal;
 
-
         @DataBoundConstructor
         public HipChatJobProperty(String room,
+                                  boolean failureCount,
+                                  boolean consoleLink,
+                                  boolean silentNotifications,
                                   boolean startNotification,
                                   boolean notifyAborted,
                                   boolean notifyFailure,
@@ -262,6 +286,9 @@ public class HipChatNotifier extends Notifier {
                                   boolean notifyUnstable,
                                   boolean notifyBackToNormal) {
             this.room = room;
+            this.failureCount = failureCount;
+            this.consoleLink = consoleLink;
+            this.silentNotifications = silentNotifications;
             this.startNotification = startNotification;
             this.notifyAborted = notifyAborted;
             this.notifyFailure = notifyFailure;
@@ -274,6 +301,21 @@ public class HipChatNotifier extends Notifier {
         @Exported
         public String getRoom() {
             return room;
+        }
+
+        @Exported
+        public boolean getFailureCount() {
+            return failureCount;
+        }
+
+        @Exported
+        public boolean getConsoleLink() {
+            return consoleLink;
+        }
+
+        @Exported
+        public boolean getSilentNotifications() {
+            return silentNotifications;
         }
 
         @Exported
@@ -339,6 +381,9 @@ public class HipChatNotifier extends Notifier {
             @Override
             public HipChatJobProperty newInstance(StaplerRequest sr, JSONObject formData) throws hudson.model.Descriptor.FormException {
                 return new HipChatJobProperty(sr.getParameter("hipChatProjectRoom"),
+                        sr.getParameter("hipChatFailureCount") != null,
+                        sr.getParameter("hipChatConsoleLink") != null,
+                        sr.getParameter("hipChatSilentNotifications") != null,
                         sr.getParameter("hipChatStartNotification") != null,
                         sr.getParameter("hipChatNotifyAborted") != null,
                         sr.getParameter("hipChatNotifyFailure") != null,
